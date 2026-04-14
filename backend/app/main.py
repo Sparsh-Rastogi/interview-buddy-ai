@@ -4,7 +4,6 @@ from app.config import settings
 from app.db.db import Base, engine
 import os
 
-# Create all DB tables automatically on startup
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -15,12 +14,21 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:8080"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+
+# Routes
+from app.routes import upload, start, answer, interview, evaluate, roadmap
+app.include_router(upload.router)
+app.include_router(start.router)
+app.include_router(answer.router)
+app.include_router(interview.router)
+app.include_router(evaluate.router)
+app.include_router(roadmap.router)
 
 @app.get("/api/health")
 def health():
