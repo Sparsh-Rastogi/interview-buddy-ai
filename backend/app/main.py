@@ -32,4 +32,4 @@ app.include_router(roadmap.router)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "message": "Server is running"}
+    return {"status": "sexy", "message": "Maza aaya"}

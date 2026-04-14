@@ -2,9 +2,10 @@ import axios from 'axios';
 import type { CandidateProfile, TopicStatus, EvaluationResult, RoadmapWeek } from '@/types';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: 'http://localhost:8000',
 });
-
+const res = await api.get('/api/health');
+console.log('API base URL:', res);
 // TODO: Replace with real API calls
 
 export async function startSession(profile: CandidateProfile): Promise<{ sessionId: string; firstQuestion: string }> {
