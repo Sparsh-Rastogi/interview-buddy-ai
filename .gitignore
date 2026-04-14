@@ -11,5 +11,6 @@ uploads/
 node_modules/
 
 # Virtual env (if you create one later)
+.venv/
 venv/
 env/
