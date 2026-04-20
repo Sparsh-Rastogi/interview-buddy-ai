@@ -7,3 +7,6 @@ redis
 python-multipart
 pdfplumber
 anthropic
+python-docx>=1.1.0 
+google-genai
+python-dotenv
