@@ -146,8 +146,8 @@ export async function startSession(
 
   // Step 2: start interview with that session_id + profile config
   // numQuestions derived from duration: 1 question per 5 minutes, minimum 3
-  const numQuestions = Math.max(3, Math.floor(profile.duration / 5));
-
+//   const numQuestions = Math.max(3, Math.floor(profile.duration / 5));
+  num_questions: profile.numQuestions  
   const { first_question } = await startInterview(
     session_id,
     profile,
@@ -174,17 +174,9 @@ export async function sendMessage(
   shouldEnd: boolean;
 }> {
   const { next_question, is_done } = await sendAnswer(sessionId, message);
-  // let final_mess;
-// let final_mess = null;
-// console.log(is_done)
-// if (is_done) {
-//   const {res} = await endInterview(sessionId);
-//   console.log(res);
-//   final_mess = res;
-// }
 
   return {
-    reply: next_question ?? "Good job! see you next time!",
+    reply: next_question ?? "",
     isFollowUp: false,      // backend does not return this — extend AnswerResponse if needed
     updatedTopics: {},      // backend does not return this — extend AnswerResponse if needed
     shouldEnd: is_done,
