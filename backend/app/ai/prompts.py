@@ -17,7 +17,7 @@ from typing import Literal
 # Types
 # ──────────────────────────────────────────────────────────────────────────────
 
-Domain = Literal["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral", "System Design"]
+Domain = Literal["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral", "System Design","ML"]
 Difficulty = Literal["easy", "medium", "hard"]
 InterviewStage = Literal["opening", "technical", "behavioral", "closing"]
 
@@ -118,6 +118,13 @@ _DOMAIN_FOCUS: dict[Domain, str] = {
         "database selection, caching strategy, scalability, reliability, "
         "monitoring, and trade-off articulation."
     ),
+    "ML": (
+        "Classical ML (linear/logistic regression, SVM, trees, ensemble methods), "
+        "bias-variance tradeoff, overfitting, evaluation metrics, cross-validation, "
+        "feature engineering. Deep learning (NNs, backprop, CNNs, RNNs), "
+        "transformers (attention, self-attention, encoder-decoder), "
+        "NLP fundamentals (tokenization, embeddings, LLMs like BERT/GPT)."
+    )
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -172,7 +179,7 @@ def get_base_system_prompt(
     str  — the complete system prompt.
     """
     if domains is None:
-        domains = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral"]
+        domains = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral","ML"]
 
     domain_focus_block = "\n".join(
         f"  • **{d}**: {_DOMAIN_FOCUS[d]}" for d in domains if d in _DOMAIN_FOCUS
@@ -266,6 +273,7 @@ def get_domain_transition_prompt(
         "CN": "Let's pivot to computer networking.",
         "Behavioral": "I want to learn more about you beyond the technical side.",
         "System Design": "Let's zoom out and think about large-scale system design.",
+        "ML": "Let’s move into machine learning and AI concepts.",
     }
     bridge = transitions.get(to_domain, f"Moving on to {to_domain}.")
     return bridge
@@ -339,6 +347,7 @@ OUTPUT SCHEMA:
     "CN": <int 0-10 or null>,
     "Behavioral": <int 0-10 or null>,
     "System Design": <int 0-10 or null>
+    "ML": <int 0-10 or null>
   },
   "detailed_feedback": "<2-3 paragraph honest, constructive written feedback>",
   "hire_recommendation": "<Strong Hire | Hire | Borderline | No Hire>"
