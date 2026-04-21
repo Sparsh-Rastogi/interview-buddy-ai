@@ -47,7 +47,7 @@ _MODEL = "gemini-2.5-flash"
 
 _DEFAULT_DOMAINS: list[Domain] = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral"]
 
-_QUESTIONS_PER_DOMAIN = 3
+_QUESTIONS_PER_DOMAIN = 5
 _SCALE_THRESHOLD = 2
 _END_SIGNAL = "that wraps up our session for today"
 
