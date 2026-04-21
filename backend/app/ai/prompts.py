@@ -78,6 +78,23 @@ _DIFFICULTY_DESCRIPTORS: dict[Difficulty, str] = {
         "Suitable for 1–3 years of industry experience."
     ),
 }
+def reorder_domains_from_resume(domains, resume_summary):
+    if not resume_summary:
+        return domains
+
+    resume = resume_summary.lower()
+    priority = []
+
+    if any(k in resume for k in ["machine learning", "ml", "deep learning", "nlp", "transformer"]):
+        priority.append("ML")
+
+    if any(k in resume for k in ["backend", "api", "django", "node", "database", "system design"]):
+        priority.append("System Design")
+
+    if any(k in resume for k in ["c++", "dsa", "competitive programming", "algorithms"]):
+        priority.append("DSA")
+
+    return priority + [d for d in domains if d not in priority]
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Domain-specific focus areas (injected when a domain is targeted)
@@ -181,6 +198,10 @@ def get_base_system_prompt(
     if domains is None:
         domains = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral","ML"]
 
+    
+    # 🔥 ADD THIS LINE (do not remove anything else)
+    domains = reorder_domains_from_resume(domains, resume_summary)
+
     domain_focus_block = "\n".join(
         f"  • **{d}**: {_DOMAIN_FOCUS[d]}" for d in domains if d in _DOMAIN_FOCUS
     )
@@ -191,7 +212,9 @@ def get_base_system_prompt(
         f"────────────────────────────────────────\n"
         f"{resume_summary}\n"
         f"Use the above to:\n"
-        f"  - Tailor questions to their actual projects and tech stack.\n"
+        f"  - You MUST base the first 2–3 questions strictly on the resume.\n"
+        f"  - Identify strongest domain and start from it.\n"
+        f"  - DO NOT default to DSA unless resume indicates it.\n"
         f"  - Probe claimed skills — ask them to defend what's on their resume.\n"
         f"  - Identify and target weak areas early.\n"
         if resume_summary
@@ -346,7 +369,7 @@ OUTPUT SCHEMA:
     "DBMS": <int 0-10 or null>,
     "CN": <int 0-10 or null>,
     "Behavioral": <int 0-10 or null>,
-    "System Design": <int 0-10 or null>
+    "System Design": <int 0-10 or null>,
     "ML": <int 0-10 or null>
   },
   "detailed_feedback": "<2-3 paragraph honest, constructive written feedback>",
@@ -436,19 +459,19 @@ def get_all_system_prompts(
 # Quick self-test  (run:  python -m app.ai.prompts)
 # ──────────────────────────────────────────────────────────────────────────────
 
-if __name__ == "__main__":
-    prompts = get_all_system_prompts(
-        difficulty="medium",
-        candidate_name="Arjun",
-        role_target="SDE-1 at Google",
-        resume_summary=(
-            "B.Tech CSE 2025, IIT Kanpur | Skills: Python, C++, Django, React | "
-            "Projects: Built a distributed key-value store using Raft consensus; "
-            "Internship at Flipkart — worked on recommendation engine."
-        ),
-    )
-    for name, text in prompts.items():
-        print(f"\n{'='*60}")
-        print(f"  PROMPT: {name}")
-        print(f"{'='*60}")
-        print(text[:600], "…[truncated]" if len(text) > 600 else "")
+# #if __name__ == "__main__":
+#     prompts = get_all_system_prompts(
+#         difficulty="medium",
+#         candidate_name="Arjun",
+#         role_target="SDE-1 at Google",
+#         resume_summary=(
+#             "B.Tech CSE 2025, IIT Kanpur | Skills: Python, C++, Django, React | "
+#             "Projects: Built a distributed key-value store using Raft consensus; "
+#             "Internship at Flipkart — worked on recommendation engine."
+#         ),
+#     )
+#     for name, text in prompts.items():
+#         print(f"\n{'='*60}")
+#         print(f"  PROMPT: {name}")
+#         print(f"{'='*60}")
+#         print(text[:600], "…[truncated]" if len(text) > 600 else "")
