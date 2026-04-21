@@ -2,9 +2,11 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.utils.redis_client import save_session
 from app.db.db import SessionLocal
 from app.db import models
+from app.ai.Resume_parser import parse_resume_from_text
 import pdfplumber
 import uuid
 import io
+import traceback
 
 router = APIRouter()
 
@@ -15,9 +17,22 @@ async def upload_resume(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
     try:
+        print("File received:", file.filename)
+
         # Read and parse PDF
+
         contents = await file.read()
-        parsed = parse_pdf(contents)
+        
+        # Extract text from PDF
+        text = ""
+        with pdfplumber.open(io.BytesIO(contents)) as pdf:
+            for page in pdf.pages:
+                text += page.extract_text() or ""
+
+        # Use Member 1's parser
+        parsed = parse_resume_from_text(text)
+
+        session_id = str(uuid.uuid4())
 
         # Create session ID
         session_id = str(uuid.uuid4())
@@ -45,6 +60,10 @@ async def upload_resume(file: UploadFile = File(...)):
         }
 
     except Exception as e:
+        print("\n🔥 ACTUAL ERROR:")
+        print(type(e).__name__, ":", str(e))
+        traceback.print_exc()
+
         raise HTTPException(status_code=500, detail=str(e))
 
 

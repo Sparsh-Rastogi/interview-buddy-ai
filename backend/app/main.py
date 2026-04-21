@@ -2,9 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.db import Base, engine
-import os
-from app.config import settings
 
+import os
+
+import logging
+logging.basicConfig(level=logging.ERROR)
+
+# Create all DB tables on startup
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -13,6 +17,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.FRONTEND_URL],
@@ -20,6 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Make sure uploads folder exists
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 # Routes
@@ -31,6 +37,7 @@ app.include_router(interview.router)
 app.include_router(evaluate.router)
 app.include_router(roadmap.router)
 
+# Health Check
 @app.get("/api/health")
 def health():
     return {"status": "ok", "message": "Server is running"}

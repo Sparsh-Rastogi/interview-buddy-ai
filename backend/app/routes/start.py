@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Literal
 from app.utils.redis_client import get_session, update_session
+from app.ai.Interviewer import start_session
 import httpx
 from app.config import settings
 
@@ -25,25 +26,25 @@ async def start_interview(body: StartRequest):
     parsed_resume = session.get("parsed_resume", {})
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                f"{settings.MEMBER1_URL}/start",
-                json={
-                    "candidate_name": parsed_resume.get("name", "Candidate"),
-                    "role_target": body.target_role,
-                    "resume_data": parsed_resume
-                }
-            )
-    except httpx.RequestError:
-        raise HTTPException(status_code=500, detail="AI service unreachable")
+        result = start_session(
+            candidate_name=parsed_resume.get("name", "Candidate"),
+            role_target=body.target_role,
+            difficulty=body.difficulty,
+            resume_data=parsed_resume,
+            max_questions=body.num_questions,
+            session_id=body.session_id
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="AI service failed to start interview")
+    if not result:
+        raise HTTPException(status_code=500, detail="Failed to start interview")
 
-    data = response.json()
 
-    session["ai_state"] = data.get("state", {})
-    session["questions_asked"] = [data.get("question", "")]
+    session["ai_state"] = result.get("state", result)
+    session["questions_asked"] = [result.get("question", "")]
     session["num_questions"] = body.num_questions
     session["is_done"] = False
 
@@ -51,5 +52,5 @@ async def start_interview(body: StartRequest):
 
     return {
         "session_id": body.session_id,
-        "first_question": data.get("question", "")
+        "first_question": result.get("question", "")
     }

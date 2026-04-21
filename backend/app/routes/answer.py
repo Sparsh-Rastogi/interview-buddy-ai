@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from app.utils.redis_client import get_session, update_session
 import httpx
 from app.config import settings
+from app.ai.Interviewer import get_next_question
 
 router = APIRouter()
 
@@ -40,38 +41,34 @@ async def submit_answer(body: AnswerRequest):
 
     # 🔹 6. Call AI service safely
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{settings.MEMBER1_URL}/answer",
-                json={
-                    "session_id": body.session_id,
-                    "answer": body.answer,
-                    "state": ai_state
-                }
-            )
-    except httpx.RequestError:
-        raise HTTPException(status_code=500, detail="AI service unreachable")
+        result = get_next_question(
+            session_id=body.session_id,
+            candidate_answer=body.answer,
+            session_state=ai_state
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
     # 🔹 7. Check response status
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="AI service failed to process answer")
-
-    data = response.json()
+    if not result:
+        raise HTTPException(status_code=500, detail="Failed to start interview")
 
     # 🔹 8. Validate response structure (important)
-    if "state" not in data or "status" not in data:
+    if "state" not in result or "status" not in result:
         raise HTTPException(status_code=500, detail="Invalid AI response")
 
     # 🔹 9. Update state
-    session["ai_state"] = data.get("state", {})
+    session["ai_state"] = result.get("state", {})
 
-    is_done = data.get("status") in ("ended", "closing")
+    is_done = result.get("status") in ("ended", "closing")
     session["is_done"] = is_done
 
     # 🔹 10. Track questions safely
     if not is_done:
-        session.setdefault("questions_asked", []).append(
-            data.get("question", "")
+        session("questions_asked").append(
+            result.get("question", "")
         )
 
     # 🔹 11. Save session
@@ -79,6 +76,6 @@ async def submit_answer(body: AnswerRequest):
 
     # 🔹 12. Return response
     return {
-        "next_question": None if is_done else data.get("question", ""),
+        "next_question": None if is_done else result.get("question", ""),
         "is_done": is_done
     }

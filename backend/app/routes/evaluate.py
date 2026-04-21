@@ -2,8 +2,9 @@ from fastapi import APIRouter, HTTPException
 from app.utils.redis_client import get_session
 from app.db.db import SessionLocal
 from app.db import models
-from app.config import settings
-import httpx
+from app.utils.redis_client import get_session, update_session
+from app.ai.Evaluator import evaluate_session
+import traceback
 
 router = APIRouter()
 
@@ -22,19 +23,16 @@ async def get_evaluation(session_id: str):
         raise HTTPException(status_code=500, detail="Missing AI state")
 
     # 🔹 Call AI service safely
+
+    # Replace the entire httpx block with:
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                f"{settings.MEMBER1_URL}/evaluate",
-                json={"state": ai_state}
-            )
-    except httpx.RequestError:
-        raise HTTPException(status_code=500, detail="AI service unreachable")
+        data = evaluate_session(ai_state)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="AI service failed to evaluate")
-
-    data = response.json()
+    if "overall_score" not in data:
+        raise HTTPException(status_code=500, detail="Invalid AI response")
 
     # 🔹 Validate critical fields
     if "overall_score" not in data:
@@ -66,5 +64,8 @@ async def get_evaluation(session_id: str):
         db.commit()
     finally:
         db.close()
+
+    session["evaluation"] = data
+    update_session(session_id, session)
 
     return {"evaluation": evaluation}

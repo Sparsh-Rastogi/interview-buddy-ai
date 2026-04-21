@@ -20,9 +20,8 @@ class Settings:
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
 
-    # Add this line in your existing Settings class
-    MEMBER1_URL: str = os.getenv("MEMBER1_URL", "http://localhost:8001")
-
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:8080")
 
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    
 settings = Settings()
