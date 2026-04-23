@@ -25,8 +25,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # -----------------------------
+# In-memory dummy store
+# -----------------------------
+# session_counter: Dict[str, int] = {}
+# Make sure uploads folder exists
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+
+# Routes
+from app.routes import upload, start, answer, interview, evaluate, roadmap
+app.include_router(upload.router)
+app.include_router(start.router)
+app.include_router(answer.router)
+app.include_router(interview.router)
+app.include_router(evaluate.router)
+app.include_router(roadmap.router)
+
 # Health Check
 @app.get("/api/health")
 def health():
