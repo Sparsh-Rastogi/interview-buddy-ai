@@ -19,6 +19,8 @@ const Onboarding = () => {
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [duration, setDuration] = useState(30);
 
+  const [resumeError, setResumeError] = useState(false); // ✅ new state
+
   const handleStart = () => {
     setCandidateProfile({
       resumeFile: file,
@@ -28,6 +30,16 @@ const Onboarding = () => {
       duration,
     });
     navigate('/interview');
+  };
+
+  const handleNext = () => {
+    if (step === 1 && !file) {
+      setResumeError(true);
+      return;
+    }
+
+    setResumeError(false);
+    setStep(step + 1);
   };
 
   return (
@@ -57,16 +69,23 @@ const Onboarding = () => {
           {step === 1 && (
             <div>
               <h2 className="text-lg font-semibold text-foreground">Upload your resume</h2>
-              <p className="mt-1 text-sm text-muted-foreground">We'll tailor questions to your experience.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                We'll tailor questions to your experience.
+              </p>
+
               <div className="mt-6">
-                <ResumeUploader file={file} onFileChange={setFile} />
+                <ResumeUploader file={file} onFileChange={(f) => {
+                  setFile(f);
+                  setResumeError(false); // ✅ clear error when user uploads
+                }} />
               </div>
-              <button
-                onClick={() => setStep(2)}
-                className="mt-4 text-xs text-muted-foreground underline hover:text-foreground"
-              >
-                Skip for now
-              </button>
+
+              {/* ✅ Inline error */}
+              {resumeError && (
+                <p className="mt-3 text-sm text-destructive">
+                  Please upload your resume to continue.
+                </p>
+              )}
             </div>
           )}
 
@@ -142,8 +161,13 @@ const Onboarding = () => {
           ) : (
             <div />
           )}
+
           {step < 3 ? (
-            <Button size="sm" onClick={() => setStep(step + 1)}>
+            <Button
+              size="sm"
+              onClick={handleNext}
+              disabled={(step === 1 && !file)||(step ===2 && (!role || !difficulty || !duration))} // ✅ disabled state
+            >
               Next <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           ) : (

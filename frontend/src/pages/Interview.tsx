@@ -8,7 +8,7 @@ import TimerBadge from '@/components/interview/TimerBadge';
 import { useInterviewStore } from '@/store/interviewStore';
 import { startSession, sendMessage, endSession } from '@/api/client';
 import { AlertTriangle } from 'lucide-react';
-
+const ques_lim = 4;
 const Interview = () => {
   const navigate = useNavigate();
   const {
@@ -85,7 +85,15 @@ const Interview = () => {
           timestamp: Date.now(),
           isFollowUp: res.isFollowUp,
         });
-        setQuestionCount((c) => c + 1);
+        setQuestionCount((c) => {
+          const newCount = c + 1;
+
+          if (newCount >= ques_lim) {
+            handleEnd(); // auto end interview
+          }
+
+          return newCount;
+        });
 
         Object.entries(res.updatedTopics).forEach(([t, s]) => updateTopicStatus(t, s));
       } finally {

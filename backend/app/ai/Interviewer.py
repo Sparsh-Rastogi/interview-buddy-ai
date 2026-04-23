@@ -177,7 +177,7 @@ def start_session(
 
     opening = get_opening_prompt(candidate_name, role_target)
 
-    state["conversation"].append({"role": "assistant", "content": opening})
+    state["conversation"].append({"role": "model", "content": opening})
     state["questions_asked"].append(opening)
     state["question_count"] += 1
 
@@ -250,7 +250,7 @@ def get_next_question(
         state["status"] = "ended"
 
     state["conversation"].append({
-        "role": "assistant",
+        "role": "model",
         "content": clean_reply
     })
 

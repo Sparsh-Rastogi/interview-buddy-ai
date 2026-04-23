@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import {downloadRoadmapPDF} from '@/utils/exportPDF';
 import { Download, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import WeeklyPlan from '@/components/roadmap/WeeklyPlan';
@@ -35,7 +36,7 @@ const Roadmap = () => {
         </div>
 
         <div className="mt-8 flex justify-center gap-4">
-          <Button variant="outline" className="gap-2" onClick={() => alert('PDF download coming soon!')}>
+          <Button variant="outline" className="gap-2" onClick={() => downloadRoadmapPDF({ roadmap})}>
             <Download className="h-4 w-4" /> Download as PDF
           </Button>
           <Link to="/onboarding">

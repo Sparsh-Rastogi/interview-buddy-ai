@@ -152,7 +152,7 @@ def generate_roadmap(evaluation: dict[str, Any]) -> dict[str, Any]:
 
 def generate_quick_tips(weak_areas: list[str]) -> dict[str, Any]:
     if not weak_areas:
-        return {"tips": {}}
+        return {"tips": {},}
 
     system = """
 Return ONLY JSON:
