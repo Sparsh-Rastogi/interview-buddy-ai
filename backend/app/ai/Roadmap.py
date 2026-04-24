@@ -1,7 +1,7 @@
 """
 roadmap.py
 ──────────
-Generates a personalised study roadmap using Gemini.
+Generates a personalised study roadmap using Groq.
 """
 
 from __future__ import annotations
@@ -9,10 +9,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from typing import Any
 
 from dotenv import load_dotenv
-from google import genai
+from groq import Groq
 
 from app.ai.prompts import get_roadmap_system_prompt
 
@@ -26,12 +27,13 @@ ENV_PATH = os.path.abspath(os.path.join(BASE_DIR, "../../../.env"))
 load_dotenv(ENV_PATH)
 load_dotenv()
 
-API_KEY = os.getenv("GEMINI_API_KEY")
+API_KEY = os.getenv("GROQ_API_KEY")
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in .env")
+    raise ValueError("GROQ_API_KEY not found in .env")
 
-_CLIENT = genai.Client(api_key=API_KEY)
-_MODEL = "gemini-2.5-flash"
+_CLIENT = Groq(api_key=API_KEY)
+_MODEL_PRIMARY = "llama3-70b-8192"
+_MODEL_FALLBACK = "llama3-8b-8192"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIG
@@ -91,31 +93,53 @@ Weak Areas: {_priority_order(evaluation)}
 
 Weekly Hours: {hours}
 
-Return ONLY JSON.
+Return STRICT JSON ONLY.
 """
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GROQ CALL
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _groq_chat(messages, temperature=0.3, max_tokens=4096):
+    for attempt in range(3):
+        try:
+            response = _CLIENT.chat.completions.create(
+                model=_MODEL_PRIMARY,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content
+        except Exception:
+            time.sleep(2 ** attempt)
+
+    # fallback
+    response = _CLIENT.chat.completions.create(
+        model=_MODEL_FALLBACK,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content
 
 
 def _call_gemini(system_prompt: str, user_prompt: str) -> dict:
     try:
-        response = _CLIENT.models.generate_content(
-            model=_MODEL,
-            contents=[
-                {"role": "user", "parts": [{"text": user_prompt}]}
-            ],
-            config={
-                "system_instruction": system_prompt,
-                "max_output_tokens": 4096,
-                "temperature": 0.3,
-            }
-        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
 
-        if not response.text:
-            raise ValueError("Empty Gemini response")
+        content = _groq_chat(messages, temperature=0.3, max_tokens=4096)
 
-        return _extract_json_safe(response.text)
+        if not content:
+            raise ValueError("Empty Groq response")
+
+        return _extract_json_safe(content)
 
     except Exception as e:
-        raise RuntimeError(f"Gemini failed: {str(e)}")
+        raise RuntimeError(f"Groq failed: {str(e)}")
 
 
 def _post_process(data: dict, evaluation: dict) -> dict:
@@ -126,7 +150,7 @@ def _post_process(data: dict, evaluation: dict) -> dict:
     data["_meta"] = {
         "candidate": evaluation.get("_meta", {}).get("candidate_name"),
         "grade": evaluation.get("grade"),
-        "model": _MODEL
+        "model": _MODEL_PRIMARY
     }
 
     return data
@@ -152,10 +176,10 @@ def generate_roadmap(evaluation: dict[str, Any]) -> dict[str, Any]:
 
 def generate_quick_tips(weak_areas: list[str]) -> dict[str, Any]:
     if not weak_areas:
-        return {"tips": {},}
+        return {"tips": {}}
 
     system = """
-Return ONLY JSON:
+Return STRICT JSON ONLY:
 {
   "tips": {
     "<area>": {

@@ -1,7 +1,7 @@
 """
 resume_parser.py
 ────────────────
-Parses uploaded resumes and extracts structured information using Gemini.
+Parses uploaded resumes and extracts structured information using Groq.
 """
 
 from __future__ import annotations
@@ -9,11 +9,12 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from google import genai
+from groq import Groq
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ENV LOADING
@@ -25,12 +26,13 @@ ENV_PATH = os.path.abspath(os.path.join(BASE_DIR, "../../../.env"))
 load_dotenv(ENV_PATH)
 load_dotenv()
 
-API_KEY = os.getenv("GEMINI_API_KEY")
+API_KEY = os.getenv("GROQ_API_KEY")
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in .env")
+    raise ValueError("GROQ_API_KEY not found in .env")
 
-_CLIENT = genai.Client(api_key=API_KEY)
-_MODEL = "gemini-2.5-flash"
+_CLIENT = Groq(api_key=API_KEY)
+_MODEL_PRIMARY = "openai/gpt-oss-120b"
+_MODEL_FALLBACK = "llama3-8b-8192"
 
 _MAX_RESUME_CHARS = 8000
 
@@ -56,7 +58,9 @@ except ImportError:
 
 _EXTRACTION_SYSTEM_PROMPT = """
 You are an expert resume analyser.
-Return ONLY valid JSON. No explanation.
+
+Return STRICT VALID JSON ONLY.
+Do not include explanation or markdown.
 
 Schema:
 {
@@ -104,7 +108,7 @@ def _extract_raw_text(path: Path) -> str:
         raise ValueError("Unsupported file format")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# GEMINI CALL
+# GROQ CALL
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _extract_json_safe(text: str) -> dict:
@@ -118,31 +122,47 @@ def _extract_json_safe(text: str) -> dict:
     if not match:
         raise ValueError("Invalid JSON response")
 
-    return json.loads(match.group())
+    return json.loads(re.sub(r",\s*([}\]])", r"\1", match.group()))
+
+
+def _groq_chat(messages, temperature=0.2, max_tokens=2048):
+    # for attempt in range(3):
+        # try:
+    response = _CLIENT.chat.completions.create(
+        model=_MODEL_PRIMARY,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    print("I RAN IT", response.choices[0].message.content)
+    return response.choices[0].message.content
+        # except Exception:
+        #     time.sleep(2 ** attempt)
+
+    # fallback
+    # response = _CLIENT.chat.completions.create(
+    #     model=_MODEL_FALLBACK,
+    #     messages=messages,
+    #     temperature=temperature,
+    #     max_tokens=max_tokens,
+    # )
+    # return response.choices[0].message.content
 
 
 def _call_gemini(raw_text: str) -> dict[str, Any]:
     truncated = raw_text[:_MAX_RESUME_CHARS]
 
-    response = _CLIENT.models.generate_content(
-        model=_MODEL,
-        contents=[
-            {
-                "role": "user",
-                "parts": [{"text": truncated}]
-            }
-        ],
-        config={
-            "system_instruction": _EXTRACTION_SYSTEM_PROMPT,
-            "temperature": 0.2,
-            "max_output_tokens": 2048,
-        }
-    )
+    messages = [
+        {"role": "system", "content": _EXTRACTION_SYSTEM_PROMPT},
+        {"role": "user", "content": truncated},
+    ]
 
-    if not response.text:
-        raise ValueError("Empty Gemini response")
+    content = _groq_chat(messages, temperature=0.2, max_tokens=2048)
 
-    return _extract_json_safe(response.text)
+    if not content:
+        raise ValueError("Empty Groq response")
+
+    return _extract_json_safe(content)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ENRICHMENT
@@ -156,7 +176,6 @@ def _enrich(data: dict, raw_text: str) -> dict:
     data.setdefault("strong_areas", [])
     data.setdefault("resume_summary", "")
 
-    # difficulty suggestion
     exp = data.get("total_experience_years", 0)
     if exp >= 2:
         data["suggested_difficulty"] = "hard"
@@ -167,7 +186,7 @@ def _enrich(data: dict, raw_text: str) -> dict:
 
     data["_meta"] = {
         "words": len(raw_text.split()),
-        "model": _MODEL
+        "model": _MODEL_PRIMARY
     }
 
     return data

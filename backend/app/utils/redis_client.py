@@ -9,7 +9,7 @@ def save_session(session_id: str, data: dict, ttl: int = 3600):
     """Save session data to Redis. TTL = 1 hour by default."""
     r.setex(session_id, ttl, json.dumps(data))
 
-def get_session(session_id: str) -> dict | None:
+def get_session(session_id: str):
     """Get session data from Redis. Returns None if not found."""
     data = r.get(session_id)
     if data is None:

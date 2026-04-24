@@ -1,7 +1,7 @@
 """
 evaluator.py
 ────────────
-Gemini-based interview evaluator (production-ready).
+Groq-based interview evaluator (production-ready).
 """
 
 from __future__ import annotations
@@ -13,12 +13,12 @@ import time
 from typing import Any
 
 from dotenv import load_dotenv
-from google import genai
+from groq import Groq
 
 from app.ai.prompts import get_evaluation_system_prompt
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Load environment variables (robust path)
+# Load environment variables
 # ──────────────────────────────────────────────────────────────────────────────
 
 BASE_DIR = os.path.dirname(__file__)
@@ -26,17 +26,18 @@ ENV_PATH = os.path.abspath(os.path.join(BASE_DIR, "../../../.env"))
 
 load_dotenv(ENV_PATH)
 
-API_KEY = os.getenv("GEMINI_API_KEY")
+API_KEY = os.getenv("GROQ_API_KEY")
 
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY not found. Check your .env file.")
+    raise ValueError("GROQ_API_KEY not found. Check your .env file.")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Gemini Client
+# Groq Client
 # ──────────────────────────────────────────────────────────────────────────────
 
-_CLIENT = genai.Client(api_key=API_KEY)
-_MODEL = "gemini-2.5-flash"
+_CLIENT = Groq(api_key=API_KEY)
+_MODEL_PRIMARY = "llama3-70b-8192"
+_MODEL_FALLBACK = "llama3-8b-8192"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Config
@@ -115,10 +116,33 @@ def _extract_json(text: str) -> dict:
 
     return json.loads(match.group())
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Groq Call (kept function name SAME)
+# ──────────────────────────────────────────────────────────────────────────────
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Gemini Call
-# ──────────────────────────────────────────────────────────────────────────────
+def _groq_chat(messages, temperature=0.2, max_tokens=1024):
+    for attempt in range(3):
+        try:
+            response = _CLIENT.chat.completions.create(
+                model=_MODEL_PRIMARY,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content
+
+        except Exception:
+            time.sleep(2 ** attempt)
+
+    # fallback model
+    response = _CLIENT.chat.completions.create(
+        model=_MODEL_FALLBACK,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content
+
 
 def _call_gemini(transcript: str, metadata: dict) -> dict[str, Any]:
     candidate_name = metadata.get("candidate_name", "Candidate")
@@ -143,23 +167,17 @@ TRANSCRIPT:
 Return ONLY valid JSON.
 """
 
-    response = _CLIENT.models.generate_content(
-        model=_MODEL,
-        contents=[
-            {"role": "user", "parts": [{"text": user_content}]}
-        ],
-        config={
-            "system_instruction": get_evaluation_system_prompt(),
-            "max_output_tokens": 2048,
-            "temperature": 0.2,
-        }
-    )
+    messages = [
+        {"role": "system", "content": get_evaluation_system_prompt()},
+        {"role": "user", "content": user_content},
+    ]
 
-    if not response.text:
-        raise ValueError("Empty response from Gemini")
+    content = _groq_chat(messages, temperature=0.2, max_tokens=2048)
 
-    return _extract_json(response.text)
+    if not content:
+        raise ValueError("Empty response from Groq")
 
+    return _extract_json(content)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Post Processing
@@ -199,7 +217,7 @@ def _post_process_evaluation(result: dict[str, Any], session_state: dict[str, An
         "total_questions": session_state.get("question_count", 0),
         "elapsed_seconds": int(time.time() - session_state.get("started_at", time.time())),
         "evaluated_at": int(time.time()),
-        "model": _MODEL,
+        "model": _MODEL_PRIMARY,
     }
 
     heuristic_domain_scores = session_state.get("domain_scores", {})
@@ -208,7 +226,6 @@ def _post_process_evaluation(result: dict[str, Any], session_state: dict[str, An
             result["domain_scores"][domain] = round(sum(scores_list) / len(scores_list), 1)
 
     return result
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Public API
@@ -262,22 +279,17 @@ QUESTION: {question}
 ANSWER: {answer}
 """
 
-    response = _CLIENT.models.generate_content(
-        model=_MODEL,
-        contents=[
-            {"role": "user", "parts": [{"text": user_content}]}
-        ],
-        config={
-            "system_instruction": system_prompt,
-            "max_output_tokens": 300,
-            "temperature": 0.3,
-        }
-    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
 
-    if not response.text:
-        raise ValueError("Empty response from Gemini")
+    content = _groq_chat(messages, temperature=0.3, max_tokens=300)
 
-    result = _extract_json(response.text)
+    if not content:
+        raise ValueError("Empty response from Groq")
+
+    result = _extract_json(content)
     result["score"] = max(0, min(10, int(result.get("score", 0))))
 
     return result

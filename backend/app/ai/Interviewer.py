@@ -1,7 +1,7 @@
 """
 interviewer.py
 ──────────────
-Gemini-based adaptive interview engine (production-ready)
+Groq-based adaptive interview engine (production-ready)
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import uuid
 from typing import Any
 
 from dotenv import load_dotenv
-from google import genai
+from groq import Groq
 
 from app.ai.prompts import (
     Difficulty,
@@ -34,16 +34,17 @@ ENV_PATH = os.path.abspath(os.path.join(BASE_DIR, "../../../.env"))
 
 load_dotenv(ENV_PATH)
 
-API_KEY = os.getenv("GEMINI_API_KEY")
+API_KEY = os.getenv("GROQ_API_KEY")
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in .env")
+    raise ValueError("GROQ_API_KEY not found in .env")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# GEMINI CLIENT
+# GROQ CLIENT
 # ──────────────────────────────────────────────────────────────────────────────
 
-_CLIENT = genai.Client(api_key=API_KEY)
-_MODEL = "gemini-2.5-flash"
+_CLIENT = Groq(api_key=API_KEY)
+_MODEL_PRIMARY = "llama3-70b-8192"
+_MODEL_FALLBACK = "llama3-8b-8192"
 
 _DEFAULT_DOMAINS: list[Domain] = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral"]
 
@@ -107,33 +108,58 @@ def _score_answer_heuristic(answer: str) -> int:
     return min(score + min(bonus, 5), 10)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# GROQ CALL (same function name preserved)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _groq_chat(messages, temperature=0.7, max_tokens=300):
+    for attempt in range(3):
+        try:
+            response = _CLIENT.chat.completions.create(
+                model=_MODEL_PRIMARY,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            print("I RAN", response.choices[0].message.content)
+            return response.choices[0].message.content
+        except Exception:
+            time.sleep(2 ** attempt)
+
+    # fallback
+    response = _CLIENT.chat.completions.create(
+        model=_MODEL_FALLBACK,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content
+
+
 def _call_gemini(system_prompt: str, conversation: list[dict]) -> str:
     """
-    Convert conversation → Gemini format and call API
+    Converted to Groq but function name unchanged
     """
 
-    contents = []
+    messages = []
 
+    # system prompt
+    messages.append({"role": "system", "content": system_prompt})
+
+    # conversation
     for msg in conversation:
-        contents.append({
-            "role": msg["role"],
-            "parts": [{"text": msg["content"]}]
+        role = "assistant" if msg["role"] == "model" else msg["role"]
+        messages.append({
+            "role": role,
+            "content": msg["content"]
         })
 
-    response = _CLIENT.models.generate_content(
-        model=_MODEL,
-        contents=contents,
-        config={
-            "system_instruction": system_prompt,
-            "max_output_tokens": 300,
-            "temperature": 0.7,
-        }
-    )
+    content = _groq_chat(messages, temperature=0.7, max_tokens=300)
 
-    if not response.text:
-        raise ValueError("Empty response from Gemini")
+    if not content:
+        raise ValueError("Empty response from Groq")
 
-    return response.text.strip()
+    return content.strip()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -203,7 +229,6 @@ def get_next_question(
     if state["status"] == "ended":
         return {"status": "ended", "state": state}
 
-    # add answer
     state["conversation"].append({
         "role": "user",
         "content": candidate_answer
@@ -214,7 +239,6 @@ def get_next_question(
 
     state["domain_scores"][domain].append(score)
 
-    # difficulty adjust
     if score >= 7:
         state["consecutive_correct"] += 1
         state["consecutive_wrong"] = 0
@@ -230,7 +254,6 @@ def get_next_question(
         state["difficulty"] = _difficulty_step_down(state["difficulty"])
         state["consecutive_wrong"] = 0
 
-    # domain switch
     state["domain_q_count"] += 1
     if state["domain_q_count"] >= _QUESTIONS_PER_DOMAIN:
         if state["domain_index"] < len(state["domains"]) - 1:
@@ -241,7 +264,6 @@ def get_next_question(
 
     system_prompt = _build_system_prompt(state, closing)
 
-    # 🔥 Gemini call (fixed)
     reply = _call_gemini(system_prompt, state["conversation"])
 
     clean_reply = re.sub(r"\[INTERNAL:.*?\]", "", reply).strip()
