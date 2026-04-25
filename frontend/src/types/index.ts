@@ -52,6 +52,6 @@ export type QuestionFeedback = {
 export type RoadmapWeek = {
   week: number;
   focus: string;
-  topics: string[];
-  problems: string[];
+  objectives: string[];
+  activities: string[];
 };

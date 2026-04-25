@@ -5,8 +5,8 @@ import html2pdf from "html2pdf.js";
 export interface WeekEntry {
   week: number;
   focus: string;
-  topics: string[];
-  problems: string[];
+  objectives: string[];
+  activities: string[];
 }
 
 export interface RoadmapData {
@@ -162,9 +162,9 @@ function weekCard(entry: WeekEntry): string {
 
         <!-- Topics -->
         <div style="flex: 1;">
-          ${sectionLabel("Topics")}
+          ${sectionLabel("Objectives")}
           <div style="line-height: 1.8;">
-            ${chips(entry.topics, T.green, T.greenBg)}
+            ${chips(entry.objectives, T.green, T.greenBg)}
           </div>
         </div>
 
@@ -173,9 +173,9 @@ function weekCard(entry: WeekEntry): string {
 
         <!-- Problems -->
         <div style="flex: 1;">
-          ${sectionLabel("Practice Problems")}
+          ${sectionLabel("Practice Tasks")}
           <div style="line-height: 1.8;">
-            ${chips(entry.problems, T.amber, T.amberBg)}
+            ${chips(entry.activities, T.amber, T.amberBg)}
           </div>
         </div>
 

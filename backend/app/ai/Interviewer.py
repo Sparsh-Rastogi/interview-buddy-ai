@@ -43,7 +43,7 @@ if not API_KEY:
 # ──────────────────────────────────────────────────────────────────────────────
 
 _CLIENT = Groq(api_key=API_KEY)
-_MODEL_PRIMARY = "llama3-70b-8192"
+_MODEL_PRIMARY = "openai/gpt-oss-120b"
 _MODEL_FALLBACK = "llama3-8b-8192"
 
 _DEFAULT_DOMAINS: list[Domain] = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral"]

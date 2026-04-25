@@ -32,7 +32,7 @@ if not API_KEY:
     raise ValueError("GROQ_API_KEY not found in .env")
 
 _CLIENT = Groq(api_key=API_KEY)
-_MODEL_PRIMARY = "llama3-70b-8192"
+_MODEL_PRIMARY = "openai/gpt-oss-120b"
 _MODEL_FALLBACK = "llama3-8b-8192"
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -110,6 +110,7 @@ def _groq_chat(messages, temperature=0.3, max_tokens=4096):
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
+            print("I am running", response.choices[0].message.content )
             return response.choices[0].message.content
         except Exception:
             time.sleep(2 ** attempt)

@@ -21,14 +21,14 @@ const WeeklyPlan = ({ week }: { week: RoadmapWeek }) => (
         Week {week.week} — {week.focus}
       </h3>
       <div className="mt-3 flex flex-wrap gap-2">
-        {week.topics.map((t) => (
+        {week.objectives.map((t) => (
           <TopicChip key={t} label={t} />
         ))}
       </div>
       <div className="mt-4">
         <span className="text-xs font-medium text-muted-foreground">Suggested problems</span>
         <ul className="mt-1.5 space-y-1 text-sm text-foreground/80 font-mono">
-          {week.problems.map((p) => (
+          {week.activities.map((p) => (
             <li key={p} className="text-xs">• {p}</li>
           ))}
         </ul>

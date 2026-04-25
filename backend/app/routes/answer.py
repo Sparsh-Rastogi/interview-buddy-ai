@@ -67,7 +67,7 @@ async def submit_answer(body: AnswerRequest):
 
     # 🔹 10. Track questions safely
     if not is_done:
-        session("questions_asked").append(
+        session["questions_asked"].append(
             result.get("question", "")
         )
 

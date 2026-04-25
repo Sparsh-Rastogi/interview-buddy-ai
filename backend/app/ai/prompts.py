@@ -187,9 +187,30 @@ NO text before or after JSON.
 
 def get_roadmap_system_prompt():
     return """
-Return STRICT JSON roadmap.
+You are a curriculum planner.
 
-NO explanations.
+Return ONLY valid JSON.
+
+Format:
+{
+  "roadmap": [
+    {
+      "week": int,
+      "focus": string,
+      "objectives": [string],
+      "activities": [string with "(X hrs)"],
+      "hours": int
+    }
+  ]
+}
+
+Rules:
+- 8–12 weeks
+- 20–30 hrs/week
+- Logical progression
+- No extra text
+- No missing fields
+- No invalid JSON
 """
 
 
