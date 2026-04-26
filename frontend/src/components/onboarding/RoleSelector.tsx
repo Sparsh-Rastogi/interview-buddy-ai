@@ -2,14 +2,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const roles = [
   'Software Engineer',
-  'Frontend Engineer',
-  'Backend Engineer',
-  'Full Stack Engineer',
-  'Data Scientist',
   'ML Engineer',
-  'DevOps / SRE',
   'System Design',
-  'Other',
+  'Digital Electronics',
+  'Analog Electronics',
 ];
 
 interface RoleSelectorProps {

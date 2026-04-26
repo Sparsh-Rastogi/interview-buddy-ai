@@ -146,7 +146,7 @@ export async function startSession(
 
   // Step 2: start interview with that session_id + profile config
   // numQuestions derived from duration: 1 question per 5 minutes, minimum 3
-  const numQuestions = Math.max(3, Math.floor(profile.duration / 5));
+  const numQuestions = 12
 
   const { first_question } = await startInterview(
     session_id,

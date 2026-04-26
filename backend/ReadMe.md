@@ -95,6 +95,40 @@ A standalone script `test_resume.py` is provided to test the end-to-end flow of 
 python test_resume.py
 ```
 
+## 🐘 PostgreSQL Quick Setup
+
+```bash
+-- 1. Login as postgres user
+sudo -u postgres psql
+
+-- 2. Create database
+CREATE DATABASE db_name;
+
+-- 3. Connect to database
+\c db_name
+
+-- 4. Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 5. Create sessions table
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Create evaluations table
+CREATE TABLE evaluations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+    score DOUBLE PRECISION,
+    feedback JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. Exit psql
+\q
+
+
 ## 🛣️ API Endpoints
 
 | Method | Endpoint | Description |

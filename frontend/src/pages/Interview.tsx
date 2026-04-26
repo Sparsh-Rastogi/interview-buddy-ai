@@ -8,7 +8,7 @@ import TimerBadge from '@/components/interview/TimerBadge';
 import { useInterviewStore } from '@/store/interviewStore';
 import { startSession, sendMessage, endSession } from '@/api/client';
 import { AlertTriangle } from 'lucide-react';
-const ques_lim = 4;
+const ques_lim = 11;
 const Interview = () => {
   const navigate = useNavigate();
   const {

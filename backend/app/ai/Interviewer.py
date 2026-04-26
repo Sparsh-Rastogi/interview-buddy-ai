@@ -265,7 +265,7 @@ def get_next_question(
     system_prompt = _build_system_prompt(state, closing)
 
     reply = _call_gemini(system_prompt, state["conversation"])
-
+    print(reply)
     clean_reply = re.sub(r"\[INTERNAL:.*?\]", "", reply).strip()
 
     if _detect_end_signal(clean_reply):

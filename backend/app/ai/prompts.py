@@ -68,12 +68,18 @@ def reorder_domains_from_resume(domains, resume_summary):
 _DOMAIN_FOCUS = {
     "DSA": "Data structures, algorithms, complexity",
     "OOP": "Encapsulation, inheritance, design patterns",
-    "OS": "Threads, scheduling, memory",
-    "DBMS": "SQL, indexing, transactions",
-    "CN": "TCP/IP, HTTP, networking",
-    "Behavioral": "STAR answers, teamwork",
-    "System Design": "Scalability, architecture",
-    "ML": "ML, DL, transformers"
+    "OS": "Threads, scheduling, memory management, concurrency",
+    "DBMS": "SQL, indexing, transactions, normalization",
+    "CN": "TCP/IP, HTTP, networking fundamentals",
+    "Behavioral": "STAR answers, teamwork, communication",
+    "System Design": "Scalability, system architecture, trade-offs",
+    "ML": "Machine learning, deep learning, transformers",
+
+    # New domains
+    "Digital Logic": "Boolean algebra, logic gates, combinational and sequential circuits, FSMs",
+    "VLSI": "CMOS design, layout, timing analysis, fabrication basics",
+    "Signals": "Time and frequency domain analysis, Fourier transforms, sampling",
+    "Analog Circuits": "Amplifiers, diodes, transistors, filters, small-signal analysis"
 }
 
 
@@ -100,7 +106,7 @@ def get_base_system_prompt(
 ):
 
     if domains is None:
-        domains = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral", "ML"]
+        domains = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral", "ML", "Digital Logic", "VLSI", "Signals", "Analog Circuits"]
 
     domains = reorder_domains_from_resume(domains, resume_summary)
 

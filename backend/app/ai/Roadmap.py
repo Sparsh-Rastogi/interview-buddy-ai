@@ -70,14 +70,41 @@ def _extract_json_safe(text: str) -> dict:
 
     return json.loads(match.group())
 
+RELEVANT_DOMAINS = {
+    "Software Engineer": [
+        "DSA", "OOP", "OS", "DBMS", "CN", "Behavioral"
+    ],
+
+    "ML Engineer": [
+        "ML", "DSA", "OOP", "Behavioral"
+    ],
+
+    "System Design": [
+        "OOP", "OS", "DBMS", "CN", "Behavioral"
+    ],
+
+    "Digital Electronics": [
+        "Digital Logic", "VLSI", "Signals", "Behavioral"
+    ],
+
+    "Analog Electronics": [
+        "Analog Circuits", "Signals", "Behavioral"
+    ],
+}
 
 def _priority_order(evaluation: dict) -> list[str]:
-    weak = evaluation.get("weak_areas", [])
+    weak = list(evaluation.get("weak_areas", []))  # avoid mutation
     scores = evaluation.get("domain_scores", {})
 
+    role = evaluation.get("_meta", {}).get("role_target")
+    relevant = RELEVANT_DOMAINS.get(role, list(scores.keys()))
+
     for d, s in scores.items():
-        if s is not None and s < 6 and d not in weak:
+        if d in relevant and s is not None and s < 6 and d not in weak:
             weak.append(d)
+
+    # filter + sort
+    weak = [d for d in weak if d in relevant]
 
     return sorted(weak, key=lambda x: scores.get(x, 0) or 0)
 
@@ -162,7 +189,7 @@ def _post_process(data: dict, evaluation: dict) -> dict:
 
 def generate_roadmap(evaluation: dict[str, Any]) -> dict[str, Any]:
     grade = evaluation.get("grade", "C")
-    weeks = _WEEKS_BY_GRADE.get(grade, 8)
+    weeks = _WEEKS_BY_GRADE.get(grade, 6)
     hours = _HOURS_BY_GRADE.get(grade, 12)
 
     user_prompt = _build_prompt(evaluation, weeks, hours)
