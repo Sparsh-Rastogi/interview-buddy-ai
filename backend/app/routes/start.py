@@ -24,10 +24,10 @@ async def start_interview(body: StartRequest):
         raise HTTPException(status_code=404, detail="Session not found. Upload resume first.")
 
     parsed_resume = session.get("parsed_resume", {})
-
+    # print(parsed_resume)
     try:
         result = start_session(
-            candidate_name=parsed_resume.get("name", "Candidate"),
+            candidate_name=parsed_resume.get("candidate_name", "Candidate"),
             role_target=body.target_role,
             difficulty=body.difficulty,
             resume_data=parsed_resume,

@@ -176,7 +176,7 @@ def start_session(
 ) -> dict[str, Any]:
 
     sid = session_id or str(uuid.uuid4())
-
+    # print(candidate_name)
     if domains is None:
         domains = list(_DEFAULT_DOMAINS)
 
