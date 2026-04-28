@@ -51,7 +51,7 @@ async def get_evaluation(session_id: str):
         "mistakes":  data.get("mistakes", []),
         "strengths": data.get("strengths", [])
     }
-
+    print(data)
     # 🔹 Safe DB handling
     db = SessionLocal()
     try:
