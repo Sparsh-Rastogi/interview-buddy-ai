@@ -61,7 +61,6 @@ async def submit_answer(body: AnswerRequest):
 
     # 🔹 9. Update state
     session["ai_state"] = result.get("state", {})
-    # print(result)
     is_done = result.get("status") in ("ended", "closing")
     session["is_done"] = is_done
 

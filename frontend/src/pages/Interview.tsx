@@ -149,7 +149,7 @@ const Interview = () => {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Strongest</span>
-              <span className="text-green">OOP</span>
+              <span className="text-green">{candidateProfile.skills}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Remaining</span>

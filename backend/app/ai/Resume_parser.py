@@ -134,7 +134,6 @@ def _groq_chat(messages, temperature=0.2, max_tokens=2048):
         temperature=temperature,
         max_tokens=max_tokens,
     )
-    print("I RAN IT", response.choices[0].message.content)
     return response.choices[0].message.content
         # except Exception:
         #     time.sleep(2 ** attempt)
