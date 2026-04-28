@@ -1,7 +1,7 @@
 """
 evaluator.py
 ────────────
-Groq-based interview evaluator (production-ready).
+Groq-based interview evaluator (robust + less strict + no zero-score bug)
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from groq import Groq
 from app.ai.prompts import get_evaluation_system_prompt
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Load environment variables
+# ENV
 # ──────────────────────────────────────────────────────────────────────────────
 
 BASE_DIR = os.path.dirname(__file__)
@@ -29,10 +29,10 @@ load_dotenv(ENV_PATH)
 API_KEY = os.getenv("GROQ_API_KEY")
 
 if not API_KEY:
-    raise ValueError("GROQ_API_KEY not found. Check your .env file.")
+    raise ValueError("GROQ_API_KEY not found.")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Groq Client
+# CLIENT
 # ──────────────────────────────────────────────────────────────────────────────
 
 _CLIENT = Groq(api_key=API_KEY)
@@ -40,7 +40,7 @@ _MODEL_PRIMARY = "openai/gpt-oss-120b"
 _MODEL_FALLBACK = "llama3-8b-8192"
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Config
+# CONFIG
 # ──────────────────────────────────────────────────────────────────────────────
 
 _SCORE_WEIGHTS = {
@@ -52,16 +52,6 @@ _SCORE_WEIGHTS = {
     "behavioral_competency":  0.05,
 }
 
-_GRADE_THRESHOLDS = [
-    (9.0, "A+"),
-    (8.0, "A"),
-    (7.0, "B+"),
-    (6.0, "B"),
-    (5.0, "C"),
-    (4.0, "D"),
-    (0.0, "F"),
-]
-
 _HIRE_THRESHOLDS = [
     (8.5, "Strong Hire"),
     (7.0, "Hire"),
@@ -70,24 +60,67 @@ _HIRE_THRESHOLDS = [
 ]
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Helpers
+# HELPERS
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _compute_overall_score(scores: dict[str, int]) -> float:
+def _normalize_score_keys(scores: dict) -> dict:
+    mapping = {
+        "technical": "technical_knowledge",
+        "technicalKnowledge": "technical_knowledge",
+        "problemSolving": "problem_solving",
+        "problem-solving": "problem_solving",
+        "communication_skills": "communication",
+        "depth": "depth_of_understanding",
+        "understanding": "depth_of_understanding",
+        "code": "code_quality",
+        "behavior": "behavioral_competency",
+    }
+
+    normalized = {}
+    for k, v in scores.items():
+        normalized[mapping.get(k, k)] = v
+
+    return normalized
+
+
+def _compute_overall_score(scores: dict[str, float]) -> float:
     total_weight = 0.0
     weighted_sum = 0.0
+    values = []
+
     for dim, weight in _SCORE_WEIGHTS.items():
-        val = scores.get(dim, 0)
+        val = float(scores.get(dim, 0))
+        values.append(val)
         weighted_sum += val * weight
         total_weight += weight
-    return round(weighted_sum / total_weight, 2) if total_weight > 0 else 0.0
+
+    if total_weight == 0:
+        return 0.0
+
+    raw = weighted_sum / total_weight
+
+    # smoothing
+    mean_score = sum(values) / len(values) if values else 0
+    smooth = 0.85 * raw + 0.15 * mean_score
+
+    return round(smooth, 2)
 
 
 def _score_to_grade(score: float) -> str:
-    for threshold, grade in _GRADE_THRESHOLDS:
-        if score >= threshold:
-            return grade
-    return "F"
+    if score >= 9:
+        return "A+"
+    elif score >= 8:
+        return "A"
+    elif score >= 7:
+        return "B+"
+    elif score >= 6:
+        return "B"
+    elif score >= 5:
+        return "C"
+    elif score >= 4:
+        return "D"
+    else:
+        return "F"
 
 
 def _score_to_hire_recommendation(score: float) -> str:
@@ -109,15 +142,13 @@ def _build_transcript(conversation: list[dict]) -> str:
 
 def _extract_json(text: str) -> dict:
     text = text.strip()
-
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
-        raise ValueError(f"No valid JSON found in model response:\n{text}")
-
+        raise ValueError(f"No valid JSON found:\n{text}")
     return json.loads(match.group())
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Groq Call (kept function name SAME)
+# GROQ CALL
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _groq_chat(messages, temperature=0.2, max_tokens=1024):
@@ -130,11 +161,9 @@ def _groq_chat(messages, temperature=0.2, max_tokens=1024):
                 max_tokens=max_tokens,
             )
             return response.choices[0].message.content
-
         except Exception:
             time.sleep(2 ** attempt)
 
-    # fallback model
     response = _CLIENT.chat.completions.create(
         model=_MODEL_FALLBACK,
         messages=messages,
@@ -144,27 +173,19 @@ def _groq_chat(messages, temperature=0.2, max_tokens=1024):
     return response.choices[0].message.content
 
 
-def _call_gemini(transcript: str, metadata: dict) -> dict[str, Any]:
-    candidate_name = metadata.get("candidate_name", "Candidate")
-    role_target = metadata.get("role_target", "SDE")
-    difficulty = metadata.get("difficulty", "medium")
-    domains = metadata.get("domains", [])
-
+def _call_gemini(transcript: str, metadata: dict[str, Any]) -> dict[str, Any]:
     user_content = f"""
-Evaluate the following interview transcript.
+Evaluate interview.
 
-INTERVIEW METADATA:
-- Candidate   : {candidate_name}
-- Role target : {role_target}
-- Difficulty  : {difficulty}
-- Domains     : {', '.join(domains)}
+Candidate: {metadata.get("candidate_name")}
+Role: {metadata.get("role_target")}
+Difficulty: {metadata.get("difficulty")}
+Domains: {', '.join(metadata.get("domains", []))}
 
 TRANSCRIPT:
-{'-' * 60}
 {transcript}
-{'-' * 60}
 
-Return ONLY valid JSON.
+Return ONLY JSON with 'scores'.
 """
 
     messages = [
@@ -172,15 +193,11 @@ Return ONLY valid JSON.
         {"role": "user", "content": user_content},
     ]
 
-    content = _groq_chat(messages, temperature=0.2, max_tokens=2048)
-
-    if not content:
-        raise ValueError("Empty response from Groq")
-
+    content = _groq_chat(messages, temperature=0.3, max_tokens=2048)
     return _extract_json(content)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Post Processing
+# POST PROCESSING (FIXED)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _post_process_evaluation(result: dict[str, Any], session_state: dict[str, Any]) -> dict[str, Any]:
@@ -196,100 +213,75 @@ def _post_process_evaluation(result: dict[str, Any], session_state: dict[str, An
         "hire_recommendation": "No Hire",
     }
 
-    for key, val in defaults.items():
-        result.setdefault(key, val)
+    for k, v in defaults.items():
+        result.setdefault(k, v)
 
-    scores = result.get("scores", {})
+    scores = result.get("scores")
+
+    # fallback if missing
+    if not isinstance(scores, dict) or not scores:
+        scores = {}
+
+    scores = _normalize_score_keys(scores)
+
+    # fill missing dims
+    for dim in _SCORE_WEIGHTS:
+        if dim not in scores:
+            scores[dim] = 5.0
+
+    # sanitize + smooth
+    clean_scores = {}
+    for dim in _SCORE_WEIGHTS:
+        try:
+            val = float(scores[dim])
+        except:
+            val = 5.0
+
+        val = max(0.0, min(10.0, val))
+        val = 0.9 * val + 0.1 * 5
+
+        clean_scores[dim] = round(val, 2)
+
+    scores = clean_scores
+
     overall = _compute_overall_score(scores)
 
+    result["scores"] = scores
     result["overall_score"] = overall
     result["grade"] = _score_to_grade(overall)
     result["hire_recommendation"] = _score_to_hire_recommendation(overall)
 
-    for dim in scores:
-        scores[dim] = max(0, min(10, int(scores[dim])))
-
-    result["_meta"] = {
-        "session_id": session_state.get("session_id"),
-        "candidate_name": session_state.get("candidate_name"),
-        "role_target": session_state.get("role_target"),
-        "difficulty": session_state.get("difficulty"),
-        "total_questions": session_state.get("question_count", 0),
-        "elapsed_seconds": int(time.time() - session_state.get("started_at", time.time())),
-        "evaluated_at": int(time.time()),
-        "model": _MODEL_PRIMARY,
-    }
-
-    heuristic_domain_scores = session_state.get("domain_scores", {})
-    for domain, scores_list in heuristic_domain_scores.items():
-        if scores_list and domain not in result["domain_scores"]:
-            result["domain_scores"][domain] = round(sum(scores_list) / len(scores_list), 1)
-
     return result
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Public API
+# PUBLIC API
 # ──────────────────────────────────────────────────────────────────────────────
 
 def evaluate_session(session_state: dict[str, Any]) -> dict[str, Any]:
     conversation = session_state.get("conversation", [])
     if not conversation:
-        raise ValueError("Session has no conversation")
+        raise ValueError("No conversation")
 
     transcript = _build_transcript(conversation)
+    raw = _call_gemini(transcript, session_state)
 
-    if len(transcript.strip()) < 50:
-        raise ValueError("Transcript too short")
-
-    metadata = {
-        "candidate_name": session_state.get("candidate_name", "Candidate"),
-        "role_target": session_state.get("role_target", "SDE"),
-        "difficulty": session_state.get("difficulty", "medium"),
-        "domains": session_state.get("domains", []),
-    }
-
-    raw = _call_gemini(transcript, metadata)
     return _post_process_evaluation(raw, session_state)
 
 
-def evaluate_single_answer(
-    question: str,
-    answer: str,
-    domain: str = "DSA",
-    difficulty: str = "medium",
-) -> dict[str, Any]:
-
-    system_prompt = """
-You are a technical interview evaluator.
-
-Return ONLY valid JSON:
-{
-  "score": <0-10>,
-  "verdict": "<Excellent|Good|Average|Poor>",
-  "feedback": "<short feedback>",
-  "follow_up": "<next question>"
-}
-"""
-
-    user_content = f"""
-DOMAIN: {domain}
-DIFFICULTY: {difficulty}
-
-QUESTION: {question}
-ANSWER: {answer}
-"""
+def evaluate_single_answer(question, answer, domain="DSA", difficulty="medium"):
 
     messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_content},
+        {"role": "system", "content": "Evaluate and return JSON with score (0-10)."},
+        {"role": "user", "content": f"Q: {question}\nA: {answer}"}
     ]
 
-    content = _groq_chat(messages, temperature=0.3, max_tokens=300)
+    result = _extract_json(_groq_chat(messages))
 
-    if not content:
-        raise ValueError("Empty response from Groq")
+    raw = float(result.get("score", 0))
+    raw = max(0.0, min(10.0, raw))
 
-    result = _extract_json(content)
-    result["score"] = max(0, min(10, int(result.get("score", 0))))
+    score = 0.9 * raw + 0.1 * 5
+
+    result["score"] = round(score, 2)
 
     return result
