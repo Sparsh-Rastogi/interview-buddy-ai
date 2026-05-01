@@ -40,18 +40,20 @@ async def get_evaluation(session_id: str):
 
     evaluation = {
         "overallScore": data.get("overall_score", 0),
+
         "dimensions": {
-            "technical":      data.get("technical_score", 0),
-            "problemSolving": data.get("problem_solving_score", 0),
-            "communication":  data.get("communication_score", 0),
-            "depth":          data.get("depth_score", 0),
-            "clarity":        data.get("clarity_score", 0),
+            "technical":      data.get("scores", {}).get("technical_knowledge", 0),
+            "problemSolving": data.get("scores", {}).get("problem_solving", 0),
+            "communication":  data.get("scores", {}).get("communication", 0),
+            "depth":          data.get("scores", {}).get("depth_of_understanding", 0),
+            "clarity":        data.get("scores", {}).get("code_quality", 0),
         },
-        "feedback":  data.get("feedback", []),
-        "mistakes":  data.get("mistakes", []),
+
+        "feedback":  data.get("detailed_feedback", ""),
+        "mistakes":  data.get("weaknesses", []),
         "strengths": data.get("strengths", [])
     }
-    print("this is data", data)
+    print("this is data", evaluation)
     # print(evaluation)
     # 🔹 Safe DB handling
     db = SessionLocal()
