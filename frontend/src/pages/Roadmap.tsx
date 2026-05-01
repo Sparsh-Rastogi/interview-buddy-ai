@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import {downloadRoadmapPDF} from '@/utils/exportPDF';
+import {downloadEvaluationPDF} from '@/utils/exportEval';
 import { Download, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import WeeklyPlan from '@/components/roadmap/WeeklyPlan';
@@ -8,7 +9,7 @@ import { endSession } from '@/api/client';
 import { useEffect } from 'react';
 
 const Roadmap = () => {
-  const { roadmap, setRoadmap, setEvaluation } = useInterviewStore();
+  const { evaluation, roadmap, setRoadmap, setEvaluation } = useInterviewStore();
 
   useEffect(() => {
     if (roadmap.length === 0) {
@@ -40,8 +41,8 @@ const Roadmap = () => {
             <Download className="h-4 w-4" /> Download as PDF
           </Button>
           <Link to="/onboarding">
-            <Button variant="ghost" className="gap-2">
-              <RotateCcw className="h-4 w-4" /> New Interview
+            <Button variant="ghost" className="gap-2" onClick={() => downloadEvaluationPDF({ evaluation })}>
+              <RotateCcw className="h-4 w-4" /> Download Interview Summary
             </Button>
           </Link>
         </div>

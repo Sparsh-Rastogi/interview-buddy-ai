@@ -12,7 +12,7 @@ interface InterviewStore {
     elapsedSeconds: number;
     isEnded: boolean;
   };
-  evaluation: EvaluationResult | null;
+  evaluation: EvaluationResult;
   roadmap: RoadmapWeek[];
 
   setCandidateProfile: (profile: CandidateProfile) => void;
