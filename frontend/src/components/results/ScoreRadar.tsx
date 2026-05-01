@@ -36,7 +36,7 @@ const ScoreRadar = ({ dimensions }: ScoreRadarProps) => {
         />
         <PolarRadiusAxis
           angle={90}
-          domain={[0, 10]}
+          domain={[0, 100]}
           tick={{ fill: 'hsl(220 8% 50%)', fontSize: 10 }}
           axisLine={false}
         />

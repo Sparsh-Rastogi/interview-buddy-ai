@@ -40,11 +40,9 @@ const Roadmap = () => {
           <Button variant="outline" className="gap-2" onClick={() => downloadRoadmapPDF({ roadmap})}>
             <Download className="h-4 w-4" /> Download as PDF
           </Button>
-          <Link to="/onboarding">
-            <Button variant="ghost" className="gap-2" onClick={() => downloadEvaluationPDF({ evaluation })}>
-              <RotateCcw className="h-4 w-4" /> Download Interview Summary
-            </Button>
-          </Link>
+          <Button variant="ghost" className="gap-2" onClick={() => downloadEvaluationPDF(evaluation)}>
+            <Download className="h-4 w-4" /> Download Interview Summary
+          </Button>
         </div>
       </div>
     </div>

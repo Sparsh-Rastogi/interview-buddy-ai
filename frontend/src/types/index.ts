@@ -37,7 +37,7 @@ export type EvaluationResult = {
     depth: number;
     clarity: number;
   };
-  feedback: QuestionFeedback[];
+  feedback: string;
   mistakes: string[];
   strengths: string[];
 };
