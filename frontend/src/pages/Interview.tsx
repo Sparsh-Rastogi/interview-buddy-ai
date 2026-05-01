@@ -126,66 +126,45 @@ const Interview = () => {
         <MessageInput onSend={handleSend} disabled={isTyping || session.isEnded} />
       </div>
 
-      {/* Right - Sidebar */}
-      <div className="hidden w-80 flex-col gap-6 overflow-y-auto border-l border-border bg-card p-5 lg:flex">
-        <TopicTracker coverage={session.topicCoverage} />
-
-        <div>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Interview Progress</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Questions</span>
-              <span className="text-foreground">{questionCount} of ~12</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Difficulty</span>
-              <span className="capitalize text-foreground">{candidateProfile?.difficulty || 'Medium'}</span>
-            </div>
+          {/* Right - Sidebar */}
+          {/* End Interview Button - Top Right */}
+    <div className="fixed top-4 right-4 z-50">
+      {!showEndConfirm ? (
+        <Button
+          variant="outline"
+          className="border-destructive/50 text-destructive hover:bg-destructive/10"
+          onClick={() => setShowEndConfirm(true)}
+        >
+          End Interview
+        </Button>
+      ) : (
+        <div className="space-y-2 rounded-md border border-destructive/30 bg-background p-3 shadow-lg">
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            End interview now?
           </div>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick Stats</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Strongest</span>
-              <span className="text-green">OOP</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Remaining</span>
-              <span className="text-foreground">3 topics</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-auto">
-          {!showEndConfirm ? (
+          <div className="flex gap-2">
             <Button
-              variant="outline"
-              className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
-              onClick={() => setShowEndConfirm(true)}
+              size="sm"
+              variant="destructive"
+              className="flex-1"
+              onClick={handleEnd}
             >
-              End Interview
+              Yes, end
             </Button>
-          ) : (
-            <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <AlertTriangle className="h-4 w-4" />
-                End interview now?
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="destructive" className="flex-1" onClick={handleEnd}>
-                  Yes, end
-                </Button>
-                <Button size="sm" variant="ghost" className="flex-1" onClick={() => setShowEndConfirm(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="flex-1"
+              onClick={() => setShowEndConfirm(false)}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
+      )}
       </div>
-    </div>
+      </div>
   );
 };
 

@@ -121,7 +121,6 @@ def _groq_chat(messages, temperature=0.7, max_tokens=300):
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            print("I RAN", response.choices[0].message.content)
             return response.choices[0].message.content
         except Exception:
             time.sleep(2 ** attempt)
@@ -177,7 +176,7 @@ def start_session(
 ) -> dict[str, Any]:
 
     sid = session_id or str(uuid.uuid4())
-
+    # print(candidate_name)
     if domains is None:
         domains = list(_DEFAULT_DOMAINS)
 
@@ -265,7 +264,6 @@ def get_next_question(
     system_prompt = _build_system_prompt(state, closing)
 
     reply = _call_gemini(system_prompt, state["conversation"])
-    print(reply)
     clean_reply = re.sub(r"\[INTERNAL:.*?\]", "", reply).strip()
 
     if _detect_end_signal(clean_reply):
