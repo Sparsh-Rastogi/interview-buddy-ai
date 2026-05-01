@@ -223,6 +223,7 @@ def _post_process_evaluation(result: dict[str, Any], session_state: dict[str, An
         scores = {}
 
     scores = _normalize_score_keys(scores)
+    print(scores)
 
     # fill missing dims
     for dim in _SCORE_WEIGHTS:

@@ -156,7 +156,7 @@ def _call_gemini(system_prompt: str, conversation: list[dict]) -> str:
     content = _groq_chat(messages, temperature=0.7, max_tokens=300)
 
     if not content:
-        raise ValueError("Empty response from Groq")
+        return "Let's continue. Can you explain your previous answer in more detail?"
 
     return content.strip()
 
