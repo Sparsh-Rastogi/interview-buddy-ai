@@ -64,38 +64,7 @@ source venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
-
-### 5. Configure Environment Variables
-Create a `.env` file in the `backend/` directory (or use the one in the root) with the following:
-
-```env
-PORT=8000
-DATABASE_URL=postgresql://user:password@localhost:5432/interview_buddy
-REDIS_URL=redis://localhost:6379
-GEMINI_API_KEY=your_gemini_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-```
-
-## 🏃 Running the Application
-
-Start the development server:
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-The API will be available at `http://localhost:8000`.
-You can access the interactive documentation (Swagger UI) at `http://localhost:8000/docs`.
-
-## 🧪 Testing
-
-A standalone script `test_resume.py` is provided to test the end-to-end flow of the AI core (parsing -> interview -> evaluation -> roadmap) without running the full web server.
-
-```bash
-python test_resume.py
-```
-
-## 🐘 PostgreSQL Quick Setup
+### 5. PostgreSQL Quick Setup
 
 ```bash
 -- 1. Login as postgres user
@@ -128,14 +97,58 @@ CREATE TABLE evaluations (
 -- 7. Exit psql
 \q
 
+```
 
-## 🛣️ API Endpoints
+### 6. Connecting a Cloud Redis Database Using `.env`
+Instead of running Redis locally on your machine (`localhost:6379`), you can use a cloud-hosted Redis database provided by Redis Cloud.
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/health` | Health check |
-| `POST` | `/api/resume/upload` | Upload and parse resume (starts session) |
-| `POST` | `/api/interview/start` | Initialize interview settings |
-| `POST` | `/api/interview/answer` | Submit an answer and get the next question |
-| `GET` | `/api/evaluation/{session_id}` | Get interview performance evaluation |
-| `GET` | `/api/roadmap/{session_id}` | Generate personalized learning roadmap |
+This guide explains how to:
+
+1. Go to the Redis website:
+   https://redis.io/
+
+2. Sign up or log in.
+
+3. Navigate to **Redis Cloud**.
+
+4. Create a new database:
+   - Choose a free plan (if available)
+   - Select a cloud provider/region
+   - Set a database name
+
+5. Open your database dashboard.
+6. Locate the **Endpoint / Public Endpoint / Redis URL** section.
+7. Copy the connection string.
+
+It will look something like this: ```redis://default:AbCdEf123456@redis-12345.c123.us-east-1-1.ec2.cloud.redislabs.com:12345 ```
+
+
+### 5. Configure Environment Variables
+Create a `.env` file in the `backend/` directory (or use the one in the root) with the following:
+
+```env
+PORT=8000
+DATABASE_URL=postgresql://user:password@localhost:5432/interview_buddy
+REDIS_URL=redis://localhost:6379
+GROQ_API_KEY= YOUR_GROQ_API_KEY
+```
+
+## 🏃 Running the Application
+
+Start the development server:
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+The API will be available at `http://localhost:8000`.
+You can access the interactive documentation (Swagger UI) at `http://localhost:8000/docs`.
+
+## 🧪 Testing
+
+A standalone script `test_resume.py` is provided to test the end-to-end flow of the AI core (parsing -> interview -> evaluation -> roadmap) without running the full web server.
+
+```bash
+python test_resume.py
+```
+

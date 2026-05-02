@@ -44,5 +44,5 @@ app.include_router(roadmap.router)
 # Health Check
 @app.get("/api/health")
 def health():
-    return {"status": "sexy", "message": "Maza aaya"}
+    return {"status": "OK", "message": "Connection Established"}
 

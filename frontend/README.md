@@ -47,6 +47,7 @@ frontend/
 │   ├── pages/         # Main page views (Landing, Interview, Results, etc.)
 │   ├── store/         # Global state management (Zustand)
 │   ├── types/         # TypeScript type definitions
+|   └── utils/         # TypeScript files for PDF Downloading
 │   └── App.tsx        # Main application component
 ├── public/            # Static assets
 └── package.json       # Dependencies and scripts

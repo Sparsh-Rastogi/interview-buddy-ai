@@ -39,14 +39,14 @@ async def get_evaluation(session_id: str):
         raise HTTPException(status_code=500, detail="Invalid AI response")
 
     evaluation = {
-        "overallScore": data.get("overall_score", 0),
+        "overallScore": 10*data.get("overall_score", 0),
 
         "dimensions": {
-            "technical":      data.get("scores", {}).get("technical_knowledge", 0),
-            "problemSolving": data.get("scores", {}).get("problem_solving", 0),
-            "communication":  data.get("scores", {}).get("communication", 0),
-            "depth":          data.get("scores", {}).get("depth_of_understanding", 0),
-            "clarity":        data.get("scores", {}).get("code_quality", 0),
+            "technical":      10*data.get("scores", {}).get("technical_knowledge", 0),
+            "problemSolving": 10*data.get("scores", {}).get("problem_solving", 0),
+            "communication":  10*data.get("scores", {}).get("communication", 0),
+            "depth":          10*data.get("scores", {}).get("depth_of_understanding", 0),
+            "clarity":        10*data.get("scores", {}).get("code_quality", 0),
         },
 
         "feedback":  data.get("detailed_feedback", ""),
