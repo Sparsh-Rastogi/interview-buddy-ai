@@ -1,6 +1,5 @@
 """
 interviewer.py
-──────────────
 Groq-based adaptive interview engine (production-ready)
 """
 
@@ -15,6 +14,9 @@ from typing import Any
 
 from dotenv import load_dotenv
 from groq import Groq
+
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 from app.ai.prompts import (
     Difficulty,
@@ -45,6 +47,10 @@ if not API_KEY:
 _CLIENT = Groq(api_key=API_KEY)
 _MODEL_PRIMARY = "openai/gpt-oss-120b"
 _MODEL_FALLBACK = "openai/gpt-oss-120b"
+
+# Embedding + cache
+_EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+_EXPECTED_CACHE = {}
 
 _DEFAULT_DOMAINS: list[Domain] = ["DSA", "OOP", "OS", "DBMS", "CN", "Behavioral"]
 
@@ -92,24 +98,104 @@ def _build_system_prompt(state: dict, closing: bool = False) -> str:
     return prompt
 
 
-def _score_answer_heuristic(answer: str) -> int:
-    if not answer.strip():
-        return 0
+# ──────────────────────────────────────────────────────────────────────────────
+# SEMANTIC SCORING HELPERS
+# ──────────────────────────────────────────────────────────────────────────────
 
-    word_count = len(answer.split())
-    score = min(word_count // 15, 5)
+def _cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-    keywords = [
-        "complexity", "algorithm", "data structure", "tree", "graph",
-        "hash", "thread", "process", "tcp", "http", "async"
-    ]
 
-    bonus = sum(1 for kw in keywords if kw in answer.lower())
-    return min(score + min(bonus, 5), 10)
+def _generate_expected_answer(question: str, difficulty: str, domain: str) -> str:
+    prompt = f"""
+You are an interviewer.
+
+Question:
+{question}
+
+Generate a concise ideal answer for a {difficulty} level candidate in {domain}.
+Include:
+- key concepts
+- correct approach
+- complexity (if relevant)
+- edge cases (if relevant)
+
+Return only the answer.
+"""
+    return _groq_chat([{"role": "system", "content": prompt}], temperature=0.3)
+
+
+def _get_expected_answer_cached(question: str, difficulty: str, domain: str) -> str:
+    key = (question, difficulty, domain)
+    if key not in _EXPECTED_CACHE:
+        _EXPECTED_CACHE[key] = _generate_expected_answer(question, difficulty, domain)
+    return _EXPECTED_CACHE[key]
+
+
+def _llm_rubric_score(question: str, answer: str) -> int:
+    prompt = f"""
+Evaluate the candidate answer.
+
+Question:
+{question}
+
+Answer:
+{answer}
+
+Score (0-10) based on:
+- correctness
+- completeness
+- reasoning
+- edge cases
+
+Return only integer.
+"""
+    out = _groq_chat([{"role": "system", "content": prompt}], temperature=0)
+    nums = re.findall(r"\d+", out)
+    return int(nums[0]) if nums else 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# GROQ CALL (same function name preserved)
+# UPDATED SCORING FUNCTION (same name)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _score_answer_heuristic(
+    answer: str,
+    question: str = "",
+    difficulty: str = "medium",
+    domain: str = "DSA",
+) -> int:
+
+    if not answer.strip():
+        return 0
+
+    expected = _get_expected_answer_cached(question, difficulty, domain)
+
+    emb_user = _EMBED_MODEL.encode(answer)
+    emb_expected = _EMBED_MODEL.encode(expected)
+
+    sim = _cosine_similarity(emb_user, emb_expected)
+
+    if sim >= 0.85:
+        sim_score = 9 + int(sim * 1)
+    elif sim >= 0.70:
+        sim_score = 7 + int((sim - 0.70) * 10)
+    elif sim >= 0.50:
+        sim_score = 4 + int((sim - 0.50) * 10)
+    elif sim >= 0.30:
+        sim_score = 2 + int((sim - 0.30) * 10)
+    else:
+        sim_score = int(sim * 3)
+
+    llm_score = _llm_rubric_score(question, answer)
+
+    final_score = int(0.6 * sim_score + 0.4 * llm_score)
+
+    return max(0, min(final_score, 10))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GROQ CALL
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _groq_chat(messages, temperature=0.7, max_tokens=300):
@@ -125,7 +211,6 @@ def _groq_chat(messages, temperature=0.7, max_tokens=300):
         except Exception:
             time.sleep(2 ** attempt)
 
-    # fallback
     response = _CLIENT.chat.completions.create(
         model=_MODEL_FALLBACK,
         messages=messages,
@@ -136,22 +221,12 @@ def _groq_chat(messages, temperature=0.7, max_tokens=300):
 
 
 def _call_gemini(system_prompt: str, conversation: list[dict]) -> str:
-    """
-    Converted to Groq but function name unchanged
-    """
-
     messages = []
-
-    # system prompt
     messages.append({"role": "system", "content": system_prompt})
 
-    # conversation
     for msg in conversation:
         role = "assistant" if msg["role"] == "model" else msg["role"]
-        messages.append({
-            "role": role,
-            "content": msg["content"]
-        })
+        messages.append({"role": role, "content": msg["content"]})
 
     content = _groq_chat(messages, temperature=0.7, max_tokens=300)
 
@@ -176,7 +251,7 @@ def start_session(
 ) -> dict[str, Any]:
 
     sid = session_id or str(uuid.uuid4())
-    # print(candidate_name)
+
     if domains is None:
         domains = list(_DEFAULT_DOMAINS)
 
@@ -233,9 +308,16 @@ def get_next_question(
         "content": candidate_answer
     })
 
-    score = _score_answer_heuristic(candidate_answer)
-    domain = _current_domain(state)
+    last_question = state["questions_asked"][-1]
 
+    score = _score_answer_heuristic(
+        candidate_answer,
+        question=last_question,
+        difficulty=state["difficulty"],
+        domain=_current_domain(state),
+    )
+
+    domain = _current_domain(state)
     state["domain_scores"][domain].append(score)
 
     if score >= 7:
